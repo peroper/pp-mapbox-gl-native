@@ -16,6 +16,15 @@ int32_t coveringZoomLevel(double z, SourceType type, uint16_t tileSize);
 std::vector<TileID> tileCover(const TransformState&, int32_t z, int32_t actualZ);
 std::vector<TileID> tileCover(const LatLngBounds&,   int32_t z, int32_t actualZ);
 
+class SourceInfo;
+
+std::vector<TileID> tileCover(const LatLngBounds&,
+                              double minZoom,
+                              double maxZoom,
+                              SourceType type,
+                              uint16_t tileSize,
+                              const SourceInfo&);
+
 } // namespace mbgl
 
 #endif

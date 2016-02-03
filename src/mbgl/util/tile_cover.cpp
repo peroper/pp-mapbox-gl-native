@@ -5,6 +5,8 @@
 #include <mbgl/map/source_info.hpp>
 #include <mbgl/map/transform_state.hpp>
 
+#include <cassert>
+
 namespace mbgl {
 
 // Taken from polymaps src/Layer.js
@@ -157,6 +159,31 @@ std::vector<TileID> tileCover(const TransformState& state, int32_t z, int32_t ac
         state.pointToCoordinate({ 0,   h   }),
         state.pointToCoordinate({ w/2, h/2 }),
         z, actualZ);
+}
+
+std::vector<TileID> tileCover(const LatLngBounds& bounds,
+                              double minZoom,
+                              double maxZoom,
+                              SourceType type,
+                              uint16_t tileSize,
+                              const SourceInfo& info) {
+    minZoom = std::max<double>(coveringZoomLevel(minZoom, type, tileSize), info.minZoom);
+    maxZoom = std::min<double>(coveringZoomLevel(maxZoom, type, tileSize), info.maxZoom);
+
+    assert(minZoom >= 0);
+    assert(maxZoom >= 0);
+    assert(minZoom < std::numeric_limits<uint8_t>::max());
+    assert(maxZoom < std::numeric_limits<uint8_t>::max());
+
+    std::vector<TileID> result;
+
+    for (uint8_t z = minZoom; z <= maxZoom; z++) {
+        for (const auto& tile : tileCover(bounds, z, z)) {
+            result.push_back(tile.normalized());
+        }
+    }
+
+    return result;
 }
 
 } // namespace mbgl
