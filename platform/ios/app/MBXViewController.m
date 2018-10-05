@@ -12,6 +12,7 @@
 #import "../src/MGLMapView_Experimental.h"
 
 #import <objc/runtime.h>
+#import "PPComputedShapeSourceDataSource.h"
 
 static const CLLocationCoordinate2D WorldTourDestinations[] = {
     { .latitude = 38.9131982, .longitude = -77.0325453144239 },
@@ -100,6 +101,7 @@ typedef NS_ENUM(NSInteger, MBXSettingsMiscellaneousRows) {
     MBXSettingsMiscellaneousShowSnapshots,
     MBXSettingsMiscellaneousShouldLimitCameraChanges,
     MBXSettingsMiscellaneousShowCustomLocationManager,
+    PPSettingsComputedShapeSourceExample,
     MBXSettingsMiscellaneousPrintLogFile,
     MBXSettingsMiscellaneousDeleteLogFile,
 };
@@ -191,6 +193,7 @@ CLLocationCoordinate2D randomWorldCoordinate() {
 
 @property (nonatomic) IBOutlet MGLMapView *mapView;
 @property (weak, nonatomic) IBOutlet UIButton *hudLabel;
+@property (strong, nonatomic) PPComputedShapeSourceDataSource *dataSource;
 @property (nonatomic) NSInteger styleIndex;
 @property (nonatomic) BOOL debugLoggingEnabled;
 @property (nonatomic) BOOL customUserLocationAnnnotationEnabled;
@@ -281,6 +284,14 @@ CLLocationCoordinate2D randomWorldCoordinate() {
         }
     }
     [self.mapView addGestureRecognizer:singleTap];
+}
+
+- (void)viewDidAppear:(BOOL)animated
+{
+    [super viewDidAppear:animated];
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self performActionForSettingAtIndexPath:[NSIndexPath indexPathForRow:10 inSection:3]];
+    });
 }
 
 - (void)saveState:(__unused NSNotification *)notification
@@ -457,6 +468,7 @@ CLLocationCoordinate2D randomWorldCoordinate() {
                 @"Show Snapshots",
                 [NSString stringWithFormat:@"%@ Camera Changes", (_shouldLimitCameraChanges ? @"Unlimit" : @"Limit")],
                 @"View Route Simulation",
+                @"Computed shape source example with geometry cut off"
             ]];
 
             if (self.debugLoggingEnabled)
@@ -706,6 +718,42 @@ CLLocationCoordinate2D randomWorldCoordinate() {
                     if (self.shouldLimitCameraChanges) {
                         [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(39.748947, -104.995882) zoomLevel:10 direction:0 animated:NO];
                     }
+                    break;
+                }
+                case PPSettingsComputedShapeSourceExample:
+                {
+                    self.dataSource = [[PPComputedShapeSourceDataSource alloc] init];
+                    MGLComputedShapeSource *source = [[MGLComputedShapeSource alloc] initWithIdentifier:@"computedSource"
+                                                                                             dataSource:self.dataSource
+                                                                                                options:@{MGLShapeSourceOptionMinimumZoomLevel: @13, MGLShapeSourceOptionMaximumZoomLevel: @13}];
+                    if (![self.mapView.style sourceWithIdentifier:@"computedSource"]) {
+                        [self.mapView.style addSource:source];
+                    }
+
+                    MGLFillStyleLayer *layer = [[MGLFillStyleLayer alloc] initWithIdentifier:@"computedSource" source:source];
+                    layer.fillColor = [NSExpression expressionForConstantValue:[UIColor redColor]];
+                    layer.minimumZoomLevel = 13;
+                    layer.maximumZoomLevel = 20;
+                    if (![self.mapView.style layerWithIdentifier:@"computedSource"]) {
+                        [self.mapView.style addLayer:layer];
+                    }
+
+                    UIEdgeInsets edgePadding;
+                    edgePadding.top = 50;
+                    edgePadding.left = 50;
+                    edgePadding.bottom = 50;
+                    edgePadding.right = 50;
+
+                    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                        MGLCoordinateBounds bounds1 = MGLCoordinateBoundsMake(CLLocationCoordinate2DMake(58.02924868613723, 13.309156727979524), CLLocationCoordinate2DMake(58.123237619003191, 13.424782304384639));
+                        [self.mapView setVisibleCoordinateBounds:bounds1 edgePadding:edgePadding animated:YES];
+
+                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1.0 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                            MGLCoordinateBounds bounds = MGLCoordinateBoundsMake(CLLocationCoordinate2DMake(58.030801021362912, 13.311337805725287), CLLocationCoordinate2DMake(58.035663733994426, 13.319929235500844));
+                            [self.mapView setVisibleCoordinateBounds:bounds edgePadding:edgePadding animated:YES];
+                        });
+                    });
+
                     break;
                 }
                 default:
