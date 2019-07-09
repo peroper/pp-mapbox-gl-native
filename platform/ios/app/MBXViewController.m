@@ -296,6 +296,9 @@ CLLocationCoordinate2D randomWorldCoordinate() {
             }
         }
     }];
+
+    [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(31, -100) zoomLevel:3 animated:NO];
+    [self toggle];
 }
 
 - (void)saveState:(__unused NSNotification *)notification
@@ -2284,8 +2287,32 @@ CLLocationCoordinate2D randomWorldCoordinate() {
     point.coordinate = [self.mapView convertPoint:self.mapView.center toCoordinateFromView:self.mapView];
 }
 
+NSString *resource;
+
+- (void)toggle {
+    if (![resource isEqualToString:@"test-visible"]) {
+        resource = @"test-visible";
+    } else {
+        resource = @"test-hidden";
+    }
+    NSLog(@"Style: %@", resource);
+
+    NSURL *url = [NSURL fileURLWithPath:[[NSBundle mainBundle] pathForResource:resource ofType:@"json"]];
+    [self.mapView setStyleURL:url];
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(2 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [self toggle];
+    });
+}
+
 - (void)mapView:(MGLMapView *)mapView didFinishLoadingStyle:(MGLStyle *)style
 {
+    NSString *feature = @"{\"type\":\"FeatureCollection\",\"features\":[{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[-110.21484375,16.25686733062344],[-94.482421875,16.25686733062344],[-94.482421875,29.458731185355344],[-110.21484375,29.458731185355344],[-110.21484375,16.25686733062344]]]}}]}";
+
+    MGLShape *shape = [MGLShape shapeWithData:[feature dataUsingEncoding:NSUTF8StringEncoding] encoding:NSUTF8StringEncoding error:nil];
+    MGLShapeSource *source = [[MGLShapeSource alloc] initWithIdentifier:@"test" shape:shape options:nil];
+    [self.mapView.style addSource:source];
+
     // Default Mapbox styles use {name_en} as their label language, which means
     // that a device with an English-language locale is already effectively
     // using locale-based country labels.
