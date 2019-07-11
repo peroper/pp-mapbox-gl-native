@@ -302,6 +302,7 @@ CLLocationCoordinate2D randomWorldCoordinate() {
             }
         }
     }];
+    [self test];
 }
 
 - (UIInterfaceOrientationMask)supportedInterfaceOrientations
@@ -2247,8 +2248,56 @@ CLLocationCoordinate2D randomWorldCoordinate() {
     point.coordinate = [self.mapView convertPoint:self.mapView.center toCoordinateFromView:self.mapView];
 }
 
+NSInteger numberOfFeatures = 1;
+
+- (void)test {
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Setting style test-visible");
+            [self setStyle:@"test-visible"];
+            [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(30, -102) zoomLevel:3 animated:NO];
+        });
+        sleep(2);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Setting style test-hidden");
+            [self setStyle:@"test-hidden"];
+        });
+        sleep(2);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Setting style test-visible");
+            [self setStyle:@"test-visible"];
+        });
+        sleep(2);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Adding a second feature (that doesn't show)");
+            numberOfFeatures = 2;
+            MGLComputedShapeSource *s = (MGLComputedShapeSource *)[self.mapView.style sourceWithIdentifier:@"test"];
+            MGLCoordinateBounds world = MGLCoordinateBoundsMake(CLLocationCoordinate2DMake(-90, -180), CLLocationCoordinate2DMake(90, 180));
+            [s invalidateBounds:world];
+        });
+        sleep(2);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Zoom in (added feature shows)");
+            [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(30, -102) zoomLevel:4 animated:YES];
+        });
+        sleep(2);
+        dispatch_async(dispatch_get_main_queue(), ^{
+            NSLog(@"Test: Zoom out (added feature doesn't show)");
+            [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(30, -102) zoomLevel:3 animated:YES];
+        });
+    });
+}
+
+- (void)setStyle:(NSString *)styleName {
+    NSURL *url = [NSURL fileURLWithPath:[[NSBundle mainBundle] pathForResource:styleName ofType:@"json"]];
+    [self.mapView setStyleURL:url];
+}
+
 - (void)mapView:(MGLMapView *)mapView didFinishLoadingStyle:(MGLStyle *)style
 {
+    MGLComputedShapeSource *computed = [[MGLComputedShapeSource alloc] initWithIdentifier:@"test" dataSource:self options:nil];
+    [self.mapView.style addSource:computed];
+
     // Default Mapbox styles use {name_en} as their label language, which means
     // that a device with an English-language locale is already effectively
     // using locale-based country labels.
@@ -2333,6 +2382,19 @@ CLLocationCoordinate2D randomWorldCoordinate() {
 #pragma mark - MGLComputedShapeSourceDataSource
 
 - (NSArray<id <MGLFeature>>*)featuresInCoordinateBounds:(MGLCoordinateBounds)bounds zoomLevel:(NSUInteger)zoom {
+    NSString *feature1 = @"{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[-110.21484375,16.25686733062344],[-94.482421875,16.25686733062344],[-94.482421875,29.458731185355344],[-110.21484375,29.458731185355344],[-110.21484375,16.25686733062344]]]}}";
+    id<MGLFeature> shape1 = (id<MGLFeature>)[MGLShape shapeWithData:[feature1 dataUsingEncoding:NSUTF8StringEncoding] encoding:NSUTF8StringEncoding error:nil];
+
+    NSString *feature2 = @"{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"Polygon\",\"coordinates\":[[[-110.478515625,31.952162238024975],[-94.39453125,31.952162238024975],[-94.39453125,42.68243539838623],[-110.478515625,42.68243539838623],[-110.478515625,31.952162238024975]]]}}";
+    id<MGLFeature> shape2 = (id<MGLFeature>)[MGLShape shapeWithData:[feature2 dataUsingEncoding:NSUTF8StringEncoding] encoding:NSUTF8StringEncoding error:nil];
+
+    if (numberOfFeatures == 1) {
+        return @[shape1];
+    } else if (numberOfFeatures == 2) {
+        return @[shape1, shape2];
+    }
+    return @[];
+
     double gridSpacing;
     if(zoom >= 13) {
         gridSpacing = 0.01;
