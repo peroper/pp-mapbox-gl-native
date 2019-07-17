@@ -2249,6 +2249,26 @@ CLLocationCoordinate2D randomWorldCoordinate() {
 
 - (void)mapView:(MGLMapView *)mapView didFinishLoadingStyle:(MGLStyle *)style
 {
+    MGLComputedShapeSource *computed = [[MGLComputedShapeSource alloc] initWithIdentifier:@"test" dataSource:self options:nil];
+    [self.mapView.style addSource:computed];
+
+    MGLLineStyleLayer *lineLayer = [[MGLLineStyleLayer alloc] initWithIdentifier:@"test" source:computed];
+    lineLayer.lineColor = [NSExpression expressionForConstantValue:[UIColor purpleColor]];
+    lineLayer.lineWidth = [NSExpression expressionForConstantValue:@4];
+    [self.mapView.style addLayer:lineLayer];
+
+    dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
+        NSArray *outcome = @[@"😺", @"😿", @"🙀"];
+        for (NSInteger i = 0; i < 3; i++) {
+            dispatch_async(dispatch_get_main_queue(), ^{
+                NSInteger zoom = 4 + 4 * i;
+                NSLog(@"Test: Zooming to z%@\t%@", @(zoom), outcome[i]);
+                [self.mapView setCenterCoordinate:CLLocationCoordinate2DMake(25, -98) zoomLevel:zoom animated:YES];
+            });
+            sleep(3);
+        }
+    });
+
     // Default Mapbox styles use {name_en} as their label language, which means
     // that a device with an English-language locale is already effectively
     // using locale-based country labels.
@@ -2333,6 +2353,12 @@ CLLocationCoordinate2D randomWorldCoordinate() {
 #pragma mark - MGLComputedShapeSourceDataSource
 
 - (NSArray<id <MGLFeature>>*)featuresInCoordinateBounds:(MGLCoordinateBounds)bounds zoomLevel:(NSUInteger)zoom {
+    NSString *featureStr = @"{\"type\":\"Feature\",\"properties\":{},\"geometry\":{\"type\":\"LineString\",\"coordinates\":[[-107.95166015624999,25.70093788144426],[-108.19335937499999,24.347096633808512],[-107.75390625,22.978623970384913],[-106.76513671875,21.657428197370653],[-104.65576171875,20.756113874762082],[-102.10693359375,20.756113874762082],[-99.99755859375,21.49396356306447],[-99.31640625,22.573438264572395],[-98.76708984374999,25.18505888358067],[-99.60205078124999,27.0982539061379],[-101.90917968749999,28.76765910569123],[-104.7216796875,28.748396571187406],[-106.69921875,28.033197847676377],[-107.841796875,26.86328062676624],[-107.9296875,25.859223554761407],[-105.97412109375,25.62171595984575],[-105.77636718749999,26.09625490696853],[-105.1171875,26.293415004265796],[-104.52392578125,26.13571361317392],[-104.337158203125,25.849336891707605],[-104.293212890625,25.522614647623293],[-102.63427734374999,25.46311452925943],[-102.5244140625,25.93828707492375],[-102.3046875,26.22444694563432],[-101.700439453125,26.382027976025352],[-101.22802734375,26.27371402440643],[-100.975341796875,26.017297563851745],[-100.92041015625,25.58208527870072],[-99.052734375,25.859223554761407],[-100.94238281249999,25.46311452925943],[-101.09619140625,25.025884063244828],[-101.612548828125,24.78673454198888],[-102.216796875,24.86650252692691],[-102.623291015625,25.3241665257384],[-104.2822265625,25.37380917154398],[-104.468994140625,25.025884063244828],[-105.00732421875,24.766784522874453],[-105.633544921875,24.836595553891183],[-105.9521484375,25.105497373014686],[-106.0400390625,25.403584973186703],[-107.841796875,25.70093788144426]]}}";
+
+    MGLShape<MGLFeature> *feature = (MGLShape<MGLFeature> *)[MGLShape shapeWithData:[featureStr dataUsingEncoding:NSUTF8StringEncoding] encoding:NSUTF8StringEncoding error:nil];
+
+    return @[feature];
+
     double gridSpacing;
     if(zoom >= 13) {
         gridSpacing = 0.01;
